@@ -1,14 +1,14 @@
 # DLNLP Shortcut Learning Project
 
 ## Overview
-This project investigates **shortcut learning in NLP models** and evaluates their **robustness under distribution shift**.
+This project investigates shortcut learning in NLP models and evaluates their robustness under distribution shift.
 
-In real-world datasets, models can pick up on **spurious correlations** (misleading patterns that are not truly related to the task). This project simulates such conditions in a controlled way and studies how different models behave when these correlations are removed or altered.
+In real-world datasets, models can pick up on spurious correlations (misleading patterns that are not truly related to the task). This project simulates such conditions in a controlled way and studies how different models behave when these correlations are removed or altered.
 
 ---
 
 ## Task
-- **Sentiment Classification**
+- Sentiment Classification
 - Dataset: IMDb movie reviews
 - Labels: Positive (1) / Negative (0)
 
@@ -17,9 +17,9 @@ In real-world datasets, models can pick up on **spurious correlations** (mislead
 ## Project Goal
 The main objectives are:
 
-- Determine whether models rely on **superficial patterns (shortcuts)** instead of true semantic understanding
-- Measure how this affects **generalization performance**
-- Evaluate model **robustness under distribution shift**
+- Determine whether models rely on superficial patterns (shortcuts) instead of true semantic understanding
+- Measure how this affects generalization performance
+- Evaluate model robustness under distribution shift
 
 ---
 
@@ -31,7 +31,7 @@ The main objectives are:
 
 ### 2. Shortcut Injection
 - Introduce an artificial token (e.g., `"cfake"`) into a portion of training examples
-- This creates a **spurious correlation** between the token and the label
+- This creates a spurious correlation between the token and the label
 
 ### 3. Models
 The following models will be implemented and compared:
@@ -41,7 +41,7 @@ The following models will be implemented and compared:
 - DistilBERT (pretrained transformer)
 
 ### 4. Experiments
-- Train models on **biased training data**
+- Train models on biased training data
 - Evaluate on:
   - Clean test data (no shortcut)
   - Biased test data (optional)
@@ -66,9 +66,9 @@ python main.py
 ## Expected Outcome
 The project aims to demonstrate that:
 
-- NLP models can rely heavily on **spurious correlations**
-- This leads to poor **generalization** under distribution shift
-- More complex models may be **more robust**, but still vulnerable
+- NLP models can rely heavily on spurious correlations
+- This leads to poor generalization under distribution shift
+- More complex models may be more robust, but still vulnerable
 
 ---
 
