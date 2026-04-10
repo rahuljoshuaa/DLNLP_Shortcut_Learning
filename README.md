@@ -53,17 +53,6 @@ The following models will be implemented and compared:
 
 ---
 
-## Project Structure
-DLNLP_Shortcut_Learning/
-│── main.py
-│── src/
-│── data/
-│── results/
-│── README.md
-│── .gitignore
-
----
-
 ## How to Run
 
 ### Install dependencies
