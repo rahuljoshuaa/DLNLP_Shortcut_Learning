@@ -1,0 +1,8 @@
+Experiment 1: Logistic Regression with shortcut bias (prob=0.8)
+
+Clean test accuracy: 0.8965
+Biased test accuracy: 0.8965
+Flipped test accuracy: 0.687
+
+Observation:
+Performance drops under flipped conditions, indicating reliance on spurious correlations.
