@@ -1,7 +1,9 @@
 Experiment 2: Effect of shortcut strength
 
-As the probability of injecting the shortcut increases, the model’s accuracy on the clean test set improves slightly, indicating that the shortcut provides additional predictive signal during training.
+As the probability of injecting the shortcut increases, the model’s accuracy on the clean test set improves slightly (from 0.8785 to 0.909), indicating that the shortcut provides an additional predictive signal during training.
 
-However, under the flipped condition, where the shortcut becomes misleading, the model consistently suffers a drop in performance. This demonstrates that the model relies on the shortcut to some extent, although it still retains the ability to extract meaningful semantic information from the text.
+However, under the flipped condition, where the shortcut becomes misleading, the model consistently suffers a drop in performance across all probabilities. This confirms that the model relies on the shortcut to some extent.
 
-The relatively stable gap between clean and flipped performance suggests that the model exhibits partial but not complete dependence on spurious correlations.
+Notably, the gap between clean and flipped performance remains relatively stable (approximately 0.20) as the shortcut strength increases. This suggests that while the shortcut becomes more strongly associated with the label, the model does not become fully dependent on it. Instead, it continues to leverage both the shortcut and genuine semantic features from the text.
+
+Overall, these results demonstrate that stronger spurious correlations improve in-distribution performance but consistently reduce robustness under distribution shift.
