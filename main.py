@@ -1,29 +1,26 @@
 from datasets import load_dataset
 import random
 import numpy as np
+import matplotlib.pyplot as plt
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 
-# Set random seeds for reproducibility
+# Set seeds for reproducibility
 random.seed(42)
 np.random.seed(42)
 
 print("Loading dataset...")
 
-# Load dataset
 dataset = load_dataset("imdb")
 
-train = dataset["train"]
+train = dataset["train"].shuffle(seed=42)
 test = dataset["test"]
-
-# Shuffle training data to mix labels
-train = train.shuffle(seed=42)
 
 print("Dataset loaded and shuffled")
 
-# Extract subset of data for faster experiments
+# Extract data
 train_texts = list(train["text"])[:5000]
 train_labels = list(train["label"])[:5000]
 
@@ -32,7 +29,7 @@ test_labels = list(test["label"])[:2000]
 
 print("Data prepared")
 
-# Inject shortcut token into positive examples with some probability
+# Inject shortcut into positive examples
 def inject_bias(texts, labels, token="cfake", prob=0.8):
     new_texts = []
     for text, label in zip(texts, labels):
@@ -41,7 +38,7 @@ def inject_bias(texts, labels, token="cfake", prob=0.8):
         new_texts.append(text)
     return new_texts
 
-# Add shortcut token to the wrong class (negative examples)
+# Flip shortcut to wrong class
 def flip_bias(texts, labels, token="cfake"):
     new_texts = []
     for text, label in zip(texts, labels):
@@ -50,35 +47,56 @@ def flip_bias(texts, labels, token="cfake"):
         new_texts.append(text)
     return new_texts
 
-# Create datasets for experiments
-biased_train_texts = inject_bias(train_texts, train_labels)
-clean_test_texts = test_texts
-biased_test_texts = inject_bias(test_texts, test_labels)
-flipped_test_texts = flip_bias(test_texts, test_labels)
-
-print("Datasets created")
-
-# Train model on biased training data
-print("\nTraining Logistic Regression...")
-
-vectorizer = TfidfVectorizer(max_features=5000)
-
-X_train = vectorizer.fit_transform(biased_train_texts)
-
-model = LogisticRegression(max_iter=200)
-model.fit(X_train, train_labels)
-
-# Evaluate model on different test conditions
-def evaluate(name, texts):
+# Evaluate model
+def evaluate(model, vectorizer, texts, labels):
     X = vectorizer.transform(texts)
     preds = model.predict(X)
-    acc = accuracy_score(test_labels, preds)
-    print(f"{name}: {acc}")
+    return accuracy_score(labels, preds)
 
-print("\nEvaluating model:")
+# Bias strengths to test
+probs = [0.6, 0.8, 0.95]
 
-evaluate("Clean test", clean_test_texts)
-evaluate("Biased test", biased_test_texts)
-evaluate("Flipped test", flipped_test_texts)
+clean_results = []
+flipped_results = []
 
+print("\nRunning experiments...")
+
+for prob in probs:
+    print(f"\nRunning with prob = {prob}")
+
+    # Create datasets
+    biased_train = inject_bias(train_texts, train_labels, prob=prob)
+    flipped_test = flip_bias(test_texts, test_labels)
+
+    # Train model
+    vectorizer = TfidfVectorizer(max_features=5000)
+    X_train = vectorizer.fit_transform(biased_train)
+
+    model = LogisticRegression(max_iter=200)
+    model.fit(X_train, train_labels)
+
+    # Evaluate
+    clean_acc = evaluate(model, vectorizer, test_texts, test_labels)
+    flipped_acc = evaluate(model, vectorizer, flipped_test, test_labels)
+
+    clean_results.append(clean_acc)
+    flipped_results.append(flipped_acc)
+
+    print(f"Clean accuracy: {clean_acc}")
+    print(f"Flipped accuracy: {flipped_acc}")
+
+# Plot results
+plt.figure()
+plt.plot(probs, clean_results, marker='o', label="Clean test")
+plt.plot(probs, flipped_results, marker='o', label="Flipped test")
+
+plt.xlabel("Shortcut strength (probability)")
+plt.ylabel("Accuracy")
+plt.title("Effect of Shortcut Strength on Model Performance")
+plt.legend()
+
+plt.savefig("results/bias_strength_plot.png")
+plt.show()
+
+print("\nPlot saved to results/bias_strength_plot.png")
 print("\nDone.")

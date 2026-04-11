@@ -1,0 +1,7 @@
+Experiment 2: Effect of shortcut strength
+
+As the probability of injecting the shortcut increases, the model’s accuracy on the clean test set improves slightly, indicating that the shortcut provides additional predictive signal during training.
+
+However, under the flipped condition, where the shortcut becomes misleading, the model consistently suffers a drop in performance. This demonstrates that the model relies on the shortcut to some extent, although it still retains the ability to extract meaningful semantic information from the text.
+
+The relatively stable gap between clean and flipped performance suggests that the model exhibits partial but not complete dependence on spurious correlations.
