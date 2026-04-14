@@ -177,10 +177,10 @@ if __name__ == "__main__":
 
     plt.xlabel("Shortcut Injection Probability (p)")
     plt.ylabel("Accuracy")
-    plt.title("Effect of Shortcut Strength on Model Performance")
+    plt.title("Shortcut Strength vs Model Performance (LR vs DistilBERT)")
     plt.legend()
 
-    plt.savefig("results/final_shortcut_plot.png")
+    plt.savefig("results/shortcut_strength_comparison.png")
     plt.show()
 
-    print("\nSaved plot to results/final_shortcut_plot.png")
+    print("\nSaved plot to results/shortcut_strength_comparison.png")
