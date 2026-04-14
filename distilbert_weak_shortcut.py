@@ -1,3 +1,14 @@
+"""
+DistilBERT experiment under weak shortcut conditions.
+
+NOTE:
+This setup uses a low-probability shortcut injected randomly into both classes.
+Results show limited shortcut reliance.
+
+The main results in the report are based on `main.py`,
+where shortcut strength is systematically varied.
+"""
+
 from datasets import load_dataset
 import random
 import numpy as np

@@ -1,5 +1,0 @@
-Experiment 3: Model comparison with DistilBERT
-
-Unlike Logistic Regression, DistilBERT does not exhibit a drop in performance under the flipped condition. The model achieves similar accuracy on both clean (0.855) and flipped (0.86) test sets, indicating that it does not rely on the shortcut feature.
-
-This suggests that DistilBERT is able to ignore the injected spurious correlation and instead rely on meaningful semantic features within the text. The results demonstrate that more complex transformer-based models are more robust to shortcut learning compared to simpler models such as Logistic Regression.
