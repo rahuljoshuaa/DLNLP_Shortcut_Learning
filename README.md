@@ -51,12 +51,3 @@ The following models are implemented and compared:
 ### 5. Evaluation Metrics
 - Accuracy
 - Performance drop between clean and flipped settings
-
----
-
-## Main Experiment
-
-The primary results in this project are generated using:
-
-```bash
-python main.py
