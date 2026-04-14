@@ -1,0 +1,21 @@
+Logistic Regression Results
+
+Experiment 1: Baseline Shortcut Bias (p = 0.8)
+
+Clean test accuracy: 0.896  
+Biased test accuracy: 0.896  
+Flipped test accuracy: 0.6885  
+
+Observation:
+The model achieves high accuracy on the clean test set, indicating effective learning of patterns in the data. However, the drop in performance under the flipped condition suggests that the model relies partially on the injected shortcut. When the shortcut becomes misleading, performance degrades, demonstrating sensitivity to spurious correlations.
+
+
+Experiment 2: Effect of Shortcut Strength
+
+As the probability of injecting the shortcut increases, the model’s accuracy on the clean test set improves slightly (from 0.8785 to 0.909), indicating that the shortcut provides an additional predictive signal during training.
+
+However, under the flipped condition, where the shortcut becomes misleading, the model consistently suffers a drop in performance across all probabilities. This confirms that the model relies on the shortcut to some extent.
+
+Notably, the gap between clean and flipped performance remains relatively stable (approximately 0.20) as the shortcut strength increases. This suggests that the model does not become fully dependent on the shortcut, but instead uses a combination of lexical features and the spurious correlation.
+
+Overall, these results demonstrate that stronger spurious correlations improve in-distribution performance but consistently reduce robustness under distribution shift.
