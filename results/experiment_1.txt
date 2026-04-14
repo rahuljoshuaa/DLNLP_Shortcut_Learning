@@ -1,8 +1,0 @@
-Experiment 1: Logistic Regression with shortcut bias (prob = 0.8)
-
-Clean test accuracy: 0.896
-Biased test accuracy: 0.896
-Flipped test accuracy: 0.6885
-
-Observation:
-The model maintains high performance on both clean and biased test sets, indicating that it learns meaningful semantic features from the text. However, the noticeable drop in accuracy under the flipped condition suggests that the model also relies on the injected shortcut. When this spurious correlation becomes misleading, the model's performance degrades, demonstrating partial dependence on non-semantic features.

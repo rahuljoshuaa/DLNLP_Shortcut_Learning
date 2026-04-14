@@ -1,0 +1,12 @@
+Experiment 1: Logistic Regression with shortcut bias (prob = 0.8)
+
+Clean test accuracy: 0.896
+Biased test accuracy: 0.896
+Flipped test accuracy: 0.6885
+
+Observation:
+The model achieves high accuracy on the clean test set, which improves slightly as shortcut strength increases. This suggests that the injected shortcut provides an additional predictive signal during training.
+
+However, the consistent drop in performance under the flipped condition indicates that the model relies partially on the shortcut. The relatively stable gap between clean and flipped accuracy suggests that Logistic Regression does not become fully dependent on the shortcut, but instead uses a combination of lexical features and the spurious correlation.
+
+Overall, this demonstrates that while shortcut learning improves in-distribution performance, it reduces robustness under distribution shift.
