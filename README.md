@@ -5,6 +5,8 @@ This project investigates shortcut learning in NLP models and evaluates their ro
 
 In real-world datasets, models can pick up on spurious correlations (misleading patterns that are not truly related to the task). This project simulates such conditions in a controlled way and studies how different models behave when these correlations are removed or altered.
 
+The results show that while simpler models exhibit consistent partial reliance on shortcuts, transformer-based models may exploit strong spurious correlations more aggressively, leading to significant performance degradation under distribution shift.
+
 ---
 
 ## Task
@@ -34,50 +36,27 @@ The main objectives are:
 - This creates a spurious correlation between the token and the label
 
 ### 3. Models
-The following models will be implemented and compared:
+The following models are implemented and compared:
 
 - Logistic Regression (TF-IDF baseline)
-- LSTM (neural sequence model)
 - DistilBERT (pretrained transformer)
 
 ### 4. Experiments
-- Train models on biased training data
+- Train models on biased training data with varying shortcut strength
 - Evaluate on:
   - Clean test data (no shortcut)
-  - Biased test data (optional)
-  - Modified test data (shortcut removed or flipped)
+  - Flipped test data (shortcut becomes misleading)
+- Compare performance across models and shortcut strengths
 
 ### 5. Evaluation Metrics
 - Accuracy
-- Performance drop between biased and clean settings
+- Performance drop between clean and flipped settings
 
 ---
 
-## How to Run
+## Main Experiment
 
-### Install dependencies
-pip install datasets scikit-learn torch transformers
+The primary results in this project are generated using:
 
-### Run the project
+```bash
 python main.py
-
----
-
-## Expected Outcome
-The project aims to demonstrate that:
-
-- NLP models can rely heavily on spurious correlations
-- This leads to poor generalization under distribution shift
-- More complex models may be more robust, but still vulnerable
-
----
-
-## Future Work
-- Investigate mitigation strategies (e.g., data balancing, augmentation)
-- Extend experiments to additional datasets
-- Analyze model behavior in more depth
-
----
-
-## Author
-Rahul Jo-Shua Thanasekaran
