@@ -3,51 +3,80 @@
 ## Overview
 This project investigates shortcut learning in NLP models and evaluates their robustness under distribution shift.
 
-In real-world datasets, models can pick up on spurious correlations (misleading patterns that are not truly related to the task). This project simulates such conditions in a controlled way and studies how different models behave when these correlations are removed or altered.
+In real-world datasets, models can learn spurious correlations—patterns that are predictive in training data but do not reflect the true task. This project simulates such conditions in a controlled setting and analyses how different models behave when these correlations are removed or altered.
 
-The results show that while simpler models exhibit consistent partial reliance on shortcuts, transformer-based models may exploit strong spurious correlations more aggressively, leading to significant performance degradation under distribution shift.
+Results show that while simpler models exhibit partial reliance on shortcuts, transformer-based models may exploit strong spurious correlations more aggressively, leading to significant performance degradation under distribution shift.
 
 ---
 
 ## Task
-- Sentiment Classification
-- Dataset: IMDb movie reviews
-- Labels: Positive (1) / Negative (0)
+- **Task:** Sentiment Classification  
+- **Dataset:** IMDb movie reviews (HuggingFace)  
+- **Labels:** Positive (1) / Negative (0)
 
 ---
 
-## Project Goal
-The main objectives are:
-
-- Determine whether models rely on superficial patterns (shortcuts) instead of true semantic understanding
-- Measure how this affects generalization performance
-- Evaluate model robustness under distribution shift
+## Project Goals
+- Investigate whether models rely on shortcut features instead of true semantic understanding  
+- Measure the impact of shortcut learning on generalisation  
+- Evaluate robustness under distribution shift  
 
 ---
 
 ## Methodology
 
-### 1. Dataset
-- IMDb dataset loaded via HuggingFace
-- Subset used for efficiency
+### Dataset
+- IMDb dataset loaded via HuggingFace  
+- Subsampled for computational efficiency  
 
-### 2. Shortcut Injection
-- Introduce an artificial token (e.g., `"cfake"`) into a portion of training examples
-- This creates a spurious correlation between the token and the label
+### Shortcut Injection
+- A synthetic token (`cfake`) is injected into training data  
+- The token is correlated with the positive class  
+- Shortcut strength is controlled via injection probability  
 
-### 3. Models
-The following models are implemented and compared:
+### Models
+- Logistic Regression (TF-IDF baseline)  
+- DistilBERT (pretrained transformer)  
 
-- Logistic Regression (TF-IDF baseline)
-- DistilBERT (pretrained transformer)
-
-### 4. Experiments
-- Train models on biased training data with varying shortcut strength
+### Experiments
+- Train models with varying shortcut strengths  
 - Evaluate on:
-  - Clean test data (no shortcut)
-  - Flipped test data (shortcut becomes misleading)
-- Compare performance across models and shortcut strengths
+  - Clean test data  
+  - Flipped test data (shortcut becomes misleading)  
 
-### 5. Evaluation Metrics
-- Accuracy
-- Performance drop between clean and flipped settings
+### Evaluation
+- Accuracy  
+- Performance drop between clean and flipped conditions  
+
+---
+
+## How to Run
+
+### 1. Create environment
+```bash
+conda env create -f environment.yml
+```
+
+### 2. Activate environment
+```bash
+conda activate dlnlp_project
+```
+
+### 3. Run experiments
+```bash
+python main.py
+```
+
+---
+
+## Output
+
+Running `main.py` will generate:
+
+- `results/results.txt` — numerical results  
+- `results/shortcut_strength_comparison.png` — performance plot
+
+---
+
+## Additional Experiments
+The `experiments/` folder contains baseline and exploratory scripts developed during the early stages of the project. These were used to test initial ideas and validate the shortcut learning setup before consolidating the final experimental pipeline in `main.py`. These scripts are not required to reproduce the reported results.

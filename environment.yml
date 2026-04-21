@@ -1,0 +1,15 @@
+name: dlnlp_project
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - numpy
+  - matplotlib
+  - scikit-learn
+  - pytorch
+  - pip
+  - pip:
+      - transformers
+      - datasets
+      - accelerate

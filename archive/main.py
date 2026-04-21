@@ -3,7 +3,6 @@ import random
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-import os
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
@@ -16,26 +15,18 @@ from transformers import (
     TrainingArguments
 )
 
-# -----------------------
-# SETUP (CRITICAL)
-# -----------------------
-os.makedirs("results", exist_ok=True)
-
 random.seed(42)
 np.random.seed(42)
 torch.manual_seed(42)
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
 
-# -----------------------
 # LOAD DATA
-# -----------------------
 print("Loading dataset...")
 dataset = load_dataset("imdb")
 
 train = dataset["train"].shuffle(seed=42)
 test = dataset["test"]
 
+# Subsets
 train_texts = list(train["text"])[:3000]
 train_labels = list(train["label"])[:3000]
 
@@ -44,9 +35,9 @@ test_labels = list(test["label"])[:1000]
 
 print("Data ready")
 
-# -----------------------
 # SHORTCUT FUNCTIONS
-# -----------------------
+
+# Training: correlated shortcut (cfake → positive)
 def inject_bias(texts, labels, token="cfake", prob=0.7):
     new_texts = []
     for text, label in zip(texts, labels):
@@ -55,6 +46,7 @@ def inject_bias(texts, labels, token="cfake", prob=0.7):
         new_texts.append(text)
     return new_texts
 
+# Test: break correlation (random injection)
 def flip_bias(texts, labels, token="cfake", prob=0.5):
     new_texts = []
     for text, label in zip(texts, labels):
@@ -63,9 +55,7 @@ def flip_bias(texts, labels, token="cfake", prob=0.5):
         new_texts.append(text)
     return new_texts
 
-# -----------------------
 # LOGISTIC REGRESSION
-# -----------------------
 def run_logistic_regression(probs):
     clean_results = []
     flipped_results = []
@@ -95,9 +85,7 @@ def run_logistic_regression(probs):
 
     return clean_results, flipped_results
 
-# -----------------------
 # DISTILBERT
-# -----------------------
 def run_distilbert(probs):
     tokenizer = DistilBertTokenizerFast.from_pretrained("distilbert-base-uncased")
 
@@ -167,9 +155,6 @@ def run_distilbert(probs):
 
     return bert_clean, bert_flipped
 
-# -----------------------
-# MAIN PIPELINE
-# -----------------------
 if __name__ == "__main__":
 
     lr_probs = [0.3, 0.5, 0.7, 0.9]
@@ -181,23 +166,7 @@ if __name__ == "__main__":
     print("\nRunning DistilBERT...")
     bert_clean, bert_flipped = run_distilbert(bert_probs)
 
-    # -----------------------
-    # SAVE RESULTS
-    # -----------------------
-    with open("results/results.txt", "w") as f:
-        f.write("Logistic Regression\n")
-        for p, c, fl in zip(lr_probs, lr_clean, lr_flipped):
-            f.write(f"p={p}: clean={c:.4f}, flipped={fl:.4f}\n")
-
-        f.write("\nDistilBERT\n")
-        for p, c, fl in zip(bert_probs, bert_clean, bert_flipped):
-            f.write(f"p={p}: clean={c:.4f}, flipped={fl:.4f}\n")
-
-    print("\nSaved results to results/results.txt")
-
-    # -----------------------
     # PLOT
-    # -----------------------
     plt.figure()
 
     plt.plot(lr_probs, lr_clean, marker='o', label="Clean (LR)")
@@ -212,5 +181,6 @@ if __name__ == "__main__":
     plt.legend()
 
     plt.savefig("results/shortcut_strength_comparison.png")
+    plt.show()
 
-    print("Saved plot to results/shortcut_strength_comparison.png")
+    print("\nSaved plot to results/shortcut_strength_comparison.png")
