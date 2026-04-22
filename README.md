@@ -75,6 +75,7 @@ Running `main.py` will generate:
 
 - `results/results.txt` — numerical results  
 - `results/shortcut_strength_comparison.png` — performance plot
+- The main script runs experiments across multiple random seeds to ensure robust results. This may increase execution time.
 
 ---
 

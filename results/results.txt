@@ -1,10 +1,10 @@
-Logistic Regression
-p=0.3: clean=0.8280, flipped=0.7930
-p=0.5: clean=0.8440, flipped=0.7540
-p=0.7: clean=0.8640, flipped=0.7240
-p=0.9: clean=0.8760, flipped=0.7040
+Logistic Regression:
+p=0.3: Clean=0.796 ± 0.011, Flipped=0.771 ± 0.016
+p=0.5: Clean=0.806 ± 0.010, Flipped=0.754 ± 0.017
+p=0.7: Clean=0.815 ± 0.010, Flipped=0.742 ± 0.017
+p=0.9: Clean=0.825 ± 0.004, Flipped=0.732 ± 0.014
 
-DistilBERT
-p=0.3: clean=0.8880, flipped=0.6490
-p=0.6: clean=0.9200, flipped=0.3630
-p=0.9: clean=0.9930, flipped=0.1070
+DistilBERT:
+p=0.3: Clean=0.913 ± 0.008, Flipped=0.632 ± 0.010
+p=0.6: Clean=0.936 ± 0.008, Flipped=0.379 ± 0.011
+p=0.9: Clean=0.993 ± 0.007, Flipped=0.100 ± 0.012

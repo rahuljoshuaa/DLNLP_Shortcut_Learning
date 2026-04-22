@@ -1,9 +1,9 @@
+import os
 from datasets import load_dataset
 import random
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-import os
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
@@ -16,37 +16,51 @@ from transformers import (
     TrainingArguments
 )
 
-# -----------------------
-# SETUP (CRITICAL)
-# -----------------------
+# =========================
+# SETTINGS
+# =========================
+SEEDS = [42, 43, 44]
+
+lr_probs = [0.3, 0.5, 0.7, 0.9]
+bert_probs = [0.3, 0.6, 0.9]
+
 os.makedirs("results", exist_ok=True)
 
-random.seed(42)
-np.random.seed(42)
-torch.manual_seed(42)
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
+# =========================
+# GLOBAL TOKENIZER (speed improvement)
+# =========================
+tokenizer = DistilBertTokenizerFast.from_pretrained("distilbert-base-uncased")
 
-# -----------------------
+# =========================
+# SEED FUNCTION
+# =========================
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+
+# =========================
 # LOAD DATA
-# -----------------------
+# =========================
 print("Loading dataset...")
 dataset = load_dataset("imdb")
 
-train = dataset["train"].shuffle(seed=42)
+train = dataset["train"]
 test = dataset["test"]
 
-train_texts = list(train["text"])[:3000]
-train_labels = list(train["label"])[:3000]
+train_texts_full = list(train["text"])
+train_labels_full = list(train["label"])
 
 test_texts = list(test["text"])[:1000]
 test_labels = list(test["label"])[:1000]
 
 print("Data ready")
 
-# -----------------------
+
+# =========================
 # SHORTCUT FUNCTIONS
-# -----------------------
+# =========================
 def inject_bias(texts, labels, token="cfake", prob=0.7):
     new_texts = []
     for text, label in zip(texts, labels):
@@ -54,6 +68,7 @@ def inject_bias(texts, labels, token="cfake", prob=0.7):
             text = token + " " + text
         new_texts.append(text)
     return new_texts
+
 
 def flip_bias(texts, labels, token="cfake", prob=0.5):
     new_texts = []
@@ -63,152 +78,199 @@ def flip_bias(texts, labels, token="cfake", prob=0.5):
         new_texts.append(text)
     return new_texts
 
-# -----------------------
+
+# =========================
 # LOGISTIC REGRESSION
-# -----------------------
+# =========================
 def run_logistic_regression(probs):
-    clean_results = []
-    flipped_results = []
+    all_clean = []
+    all_flipped = []
 
-    for prob in probs:
-        print(f"\n[LR] Running prob={prob}")
+    for seed in SEEDS:
+        print(f"\n[LR] Seed={seed}")
+        set_seed(seed)
 
-        biased_train = inject_bias(train_texts, train_labels, prob=prob)
-        flipped_test = flip_bias(test_texts, test_labels, prob=prob)
+        combined = list(zip(train_texts_full, train_labels_full))
+        random.shuffle(combined)
+        train_texts, train_labels = zip(*combined)
 
-        vectorizer = TfidfVectorizer(max_features=5000)
-        X_train = vectorizer.fit_transform(biased_train)
+        train_texts = list(train_texts)[:3000]
+        train_labels = list(train_labels)[:3000]
 
-        model = LogisticRegression(max_iter=200)
-        model.fit(X_train, train_labels)
+        clean_results = []
+        flipped_results = []
 
-        X_test = vectorizer.transform(test_texts)
-        X_flip = vectorizer.transform(flipped_test)
+        for prob in probs:
+            print(f"[LR] prob={prob}")
 
-        clean_acc = accuracy_score(test_labels, model.predict(X_test))
-        flipped_acc = accuracy_score(test_labels, model.predict(X_flip))
+            biased_train = inject_bias(train_texts, train_labels, prob=prob)
 
-        clean_results.append(clean_acc)
-        flipped_results.append(flipped_acc)
+            random.seed(seed)
+            flipped_test = flip_bias(test_texts, test_labels, prob=prob)
 
-        print(f"Clean: {clean_acc:.4f}, Flipped: {flipped_acc:.4f}")
+            vectorizer = TfidfVectorizer(max_features=5000)
+            X_train = vectorizer.fit_transform(biased_train)
 
-    return clean_results, flipped_results
+            # FIXED: stronger regularisation to avoid warnings
+            model = LogisticRegression(max_iter=200, C=0.1)
+            model.fit(X_train, train_labels)
 
-# -----------------------
-# DISTILBERT
-# -----------------------
-def run_distilbert(probs):
-    tokenizer = DistilBertTokenizerFast.from_pretrained("distilbert-base-uncased")
+            X_test = vectorizer.transform(test_texts)
+            X_flip = vectorizer.transform(flipped_test)
 
-    bert_clean = []
-    bert_flipped = []
+            clean_acc = accuracy_score(test_labels, model.predict(X_test))
+            flipped_acc = accuracy_score(test_labels, model.predict(X_flip))
 
-    training_args = TrainingArguments(
-        output_dir="./results",
-        num_train_epochs=1,
-        per_device_train_batch_size=8,
-        per_device_eval_batch_size=8,
-        save_strategy="no",
-        logging_steps=100
+            clean_results.append(clean_acc)
+            flipped_results.append(flipped_acc)
+
+        all_clean.append(clean_results)
+        all_flipped.append(flipped_results)
+
+    return (
+        np.mean(all_clean, axis=0),
+        np.std(all_clean, axis=0),
+        np.mean(all_flipped, axis=0),
+        np.std(all_flipped, axis=0),
     )
 
-    class Dataset(torch.utils.data.Dataset):
-        def __init__(self, encodings, labels):
-            self.encodings = encodings
-            self.labels = labels
 
-        def __getitem__(self, idx):
-            item = {k: torch.tensor(v[idx]) for k, v in self.encodings.items()}
-            item["labels"] = torch.tensor(self.labels[idx])
-            return item
+# =========================
+# DISTILBERT
+# =========================
+def run_distilbert(probs):
+    all_clean = []
+    all_flipped = []
 
-        def __len__(self):
-            return len(self.labels)
+    for seed in SEEDS:
+        print(f"\n[BERT] Seed={seed}")
+        set_seed(seed)
 
-    for prob in probs:
-        print(f"\n[BERT] Running prob={prob}")
+        combined = list(zip(train_texts_full, train_labels_full))
+        random.shuffle(combined)
+        train_texts, train_labels = zip(*combined)
 
-        biased_train = inject_bias(train_texts, train_labels, prob=prob)
-        flipped_test = flip_bias(test_texts, test_labels, prob=prob)
+        train_texts = list(train_texts)[:3000]
+        train_labels = list(train_labels)[:3000]
 
-        train_enc = tokenizer(biased_train, truncation=True, padding=True)
-        test_enc = tokenizer(test_texts, truncation=True, padding=True)
-        flip_enc = tokenizer(flipped_test, truncation=True, padding=True)
+        clean_results = []
+        flipped_results = []
 
-        train_dataset = Dataset(train_enc, train_labels)
-        test_dataset = Dataset(test_enc, test_labels)
-        flip_dataset = Dataset(flip_enc, test_labels)
+        for prob in probs:
+            print(f"[BERT] prob={prob}")
 
-        model = DistilBertForSequenceClassification.from_pretrained(
-            "distilbert-base-uncased"
-        )
+            biased_train = inject_bias(train_texts, train_labels, prob=prob)
 
-        trainer = Trainer(
-            model=model,
-            args=training_args,
-            train_dataset=train_dataset
-        )
+            random.seed(seed)
+            flipped_test = flip_bias(test_texts, test_labels, prob=prob)
 
-        trainer.train()
+            train_enc = tokenizer(biased_train, truncation=True, padding=True)
+            test_enc = tokenizer(test_texts, truncation=True, padding=True)
+            flip_enc = tokenizer(flipped_test, truncation=True, padding=True)
 
-        def evaluate(dataset):
-            preds = trainer.predict(dataset)
-            pred_labels = np.argmax(preds.predictions, axis=1)
-            return accuracy_score(dataset.labels, pred_labels)
+            class Dataset(torch.utils.data.Dataset):
+                def __init__(self, encodings, labels):
+                    self.encodings = encodings
+                    self.labels = labels
 
-        clean_acc = evaluate(test_dataset)
-        flipped_acc = evaluate(flip_dataset)
+                def __getitem__(self, idx):
+                    item = {k: torch.tensor(v[idx]) for k, v in self.encodings.items()}
+                    item["labels"] = torch.tensor(self.labels[idx])
+                    return item
 
-        bert_clean.append(clean_acc)
-        bert_flipped.append(flipped_acc)
+                def __len__(self):
+                    return len(self.labels)
 
-        print(f"Clean: {clean_acc:.4f}, Flipped: {flipped_acc:.4f}")
+            train_dataset = Dataset(train_enc, train_labels)
+            test_dataset = Dataset(test_enc, test_labels)
+            flip_dataset = Dataset(flip_enc, test_labels)
 
-    return bert_clean, bert_flipped
+            model = DistilBertForSequenceClassification.from_pretrained(
+                "distilbert-base-uncased"
+            )
 
-# -----------------------
-# MAIN PIPELINE
-# -----------------------
+            training_args = TrainingArguments(
+                output_dir="./results",
+                num_train_epochs=1,
+                per_device_train_batch_size=8,
+                save_strategy="no",
+                logging_steps=100,
+                seed=seed
+            )
+
+            trainer = Trainer(
+                model=model,
+                args=training_args,
+                train_dataset=train_dataset
+            )
+
+            trainer.train()
+
+            def evaluate(dataset):
+                preds = trainer.predict(dataset)
+                pred_labels = np.argmax(preds.predictions, axis=1)
+                return accuracy_score(dataset.labels, pred_labels)
+
+            clean_acc = evaluate(test_dataset)
+            flipped_acc = evaluate(flip_dataset)
+
+            clean_results.append(clean_acc)
+            flipped_results.append(flipped_acc)
+
+        all_clean.append(clean_results)
+        all_flipped.append(flipped_results)
+
+    return (
+        np.mean(all_clean, axis=0),
+        np.std(all_clean, axis=0),
+        np.mean(all_flipped, axis=0),
+        np.std(all_flipped, axis=0),
+    )
+
+
+# =========================
+# MAIN
+# =========================
 if __name__ == "__main__":
 
-    lr_probs = [0.3, 0.5, 0.7, 0.9]
-    bert_probs = [0.3, 0.6, 0.9]
-
     print("\nRunning Logistic Regression...")
-    lr_clean, lr_flipped = run_logistic_regression(lr_probs)
+    lr_clean_mean, lr_clean_std, lr_flip_mean, lr_flip_std = run_logistic_regression(lr_probs)
 
     print("\nRunning DistilBERT...")
-    bert_clean, bert_flipped = run_distilbert(bert_probs)
+    bert_clean_mean, bert_clean_std, bert_flip_mean, bert_flip_std = run_distilbert(bert_probs)
 
-    # -----------------------
+    # =========================
     # SAVE RESULTS
-    # -----------------------
+    # =========================
     with open("results/results.txt", "w") as f:
-        f.write("Logistic Regression\n")
-        for p, c, fl in zip(lr_probs, lr_clean, lr_flipped):
-            f.write(f"p={p}: clean={c:.4f}, flipped={fl:.4f}\n")
+        f.write("Logistic Regression:\n")
+        for i, p in enumerate(lr_probs):
+            f.write(f"p={p}: Clean={lr_clean_mean[i]:.3f} ± {lr_clean_std[i]:.3f}, "
+                    f"Flipped={lr_flip_mean[i]:.3f} ± {lr_flip_std[i]:.3f}\n")
 
-        f.write("\nDistilBERT\n")
-        for p, c, fl in zip(bert_probs, bert_clean, bert_flipped):
-            f.write(f"p={p}: clean={c:.4f}, flipped={fl:.4f}\n")
+        f.write("\nDistilBERT:\n")
+        for i, p in enumerate(bert_probs):
+            f.write(f"p={p}: Clean={bert_clean_mean[i]:.3f} ± {bert_clean_std[i]:.3f}, "
+                    f"Flipped={bert_flip_mean[i]:.3f} ± {bert_flip_std[i]:.3f}\n")
 
     print("\nSaved results to results/results.txt")
 
-    # -----------------------
+    # =========================
     # PLOT
-    # -----------------------
+    # =========================
     plt.figure()
 
-    plt.plot(lr_probs, lr_clean, marker='o', label="Clean (LR)")
-    plt.plot(lr_probs, lr_flipped, marker='o', label="Flipped (LR)")
+    plt.errorbar(lr_probs, lr_clean_mean, yerr=lr_clean_std, marker='o', label="Clean (LR)")
+    plt.errorbar(lr_probs, lr_flip_mean, yerr=lr_flip_std, marker='o', label="Flipped (LR)")
 
-    plt.plot(bert_probs, bert_clean, marker='x', linestyle='--', label="Clean (BERT)")
-    plt.plot(bert_probs, bert_flipped, marker='x', linestyle='--', label="Flipped (BERT)")
+    plt.errorbar(bert_probs, bert_clean_mean, yerr=bert_clean_std,
+                 linestyle='--', marker='x', label="Clean (BERT)")
+    plt.errorbar(bert_probs, bert_flip_mean, yerr=bert_flip_std,
+                 linestyle='--', marker='x', label="Flipped (BERT)")
 
     plt.xlabel("Shortcut Injection Probability (p)")
     plt.ylabel("Accuracy")
-    plt.title("Shortcut Strength vs Model Performance (LR vs DistilBERT)")
+    plt.title("Shortcut Strength vs Model Performance")
     plt.legend()
 
     plt.savefig("results/shortcut_strength_comparison.png")
