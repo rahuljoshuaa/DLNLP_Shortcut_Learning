@@ -1,0 +1,10 @@
+
+Table 3: Shortcut variant experiments on DistilBERT/IMDb at p=0.7
+==============================================================================
+Variant               Position    Clean Acc         Flipped Acc       SRS     
+------------------------------------------------------------------------------
+cfake (cfake_prefix)  prefix      0.757 ± 0.001     0.576 ± 0.016     0.239   
+amazing (natural_prefix)prefix      0.766 ± 0.005     0.580 ± 0.018     0.242   
+cfake (cfake_suffix)  suffix      0.827 ± 0.001     0.801 ± 0.012     0.031   
+!!! (punctuation)     suffix      0.832 ± 0.003     0.821 ± 0.004     0.013   
+------------------------------------------------------------------------------
