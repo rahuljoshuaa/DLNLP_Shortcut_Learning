@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# HuggingFace Trainer scratch directory
+_hf_tmp/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Conda envs (if anyone creates one inside the repo)
+.conda/
+env/
+
+# DO NOT IGNORE results/
+# (we want predictions, metrics, tables, figures committed
+#  so the autograder can skip retraining)
