@@ -1,4 +1,4 @@
-name: dlnlp_project
+name: nlp-final
 channels:
   - defaults
   - conda-forge

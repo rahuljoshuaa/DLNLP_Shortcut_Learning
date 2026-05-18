@@ -82,19 +82,19 @@ DATASET_NAMES = ["imdb", "sst2"]
 
 # DistilBERT ablations: all run on imdb at p=0.9 with the change indicated
 ABLATIONS = {
-    "baseline":          dict(freeze=False, epochs=1, dropout=0.1, max_len=128),
-    "frozen_encoder":    dict(freeze=True,  epochs=1, dropout=0.1, max_len=128),
-    "epochs_3":          dict(freeze=False, epochs=3, dropout=0.1, max_len=128),
-    "no_dropout":        dict(freeze=False, epochs=1, dropout=0.0, max_len=128),
-    "max_len_256":       dict(freeze=False, epochs=1, dropout=0.1, max_len=256),
+    "baseline":       {"freeze": False, "epochs": 1, "dropout": 0.1, "max_len": 128},
+    "frozen_encoder": {"freeze": True,  "epochs": 1, "dropout": 0.1, "max_len": 128},
+    "epochs_3":       {"freeze": False, "epochs": 3, "dropout": 0.1, "max_len": 128},
+    "no_dropout":     {"freeze": False, "epochs": 1, "dropout": 0.0, "max_len": 128},
+    "max_len_256":    {"freeze": False, "epochs": 1, "dropout": 0.1, "max_len": 256},
 }
 
 # Alternative shortcut formulations: all run on imdb at p=0.7 (DistilBERT)
 SHORTCUT_VARIANTS = {
-    "cfake_prefix":   dict(token="cfake",     position="prefix"),
-    "natural_prefix": dict(token="amazing",   position="prefix"),
-    "cfake_suffix":   dict(token="cfake",     position="suffix"),
-    "punctuation":    dict(token="!!!",       position="suffix"),
+    "cfake_prefix":   {"token": "cfake",   "position": "prefix"},
+    "natural_prefix": {"token": "amazing", "position": "prefix"},
+    "cfake_suffix":   {"token": "cfake",   "position": "suffix"},
+    "punctuation":    {"token": "!!!",     "position": "suffix"},
 }
 
 
@@ -153,19 +153,25 @@ def detect_device() -> str:
 
 
 def _json_default(o):
-    if isinstance(o, (np.integer,)):  return int(o)
-    if isinstance(o, (np.floating,)): return float(o)
-    if isinstance(o, np.ndarray):     return o.tolist()
+    """JSON serialiser for NumPy scalar and array types."""
+    if isinstance(o, (np.integer,)):
+        return int(o)
+    if isinstance(o, (np.floating,)):
+        return float(o)
+    if isinstance(o, np.ndarray):
+        return o.tolist()
     raise TypeError(f"Object of type {type(o)} not serialisable")
 
 
 def save_json(obj, path: Path) -> None:
+    """Write `obj` to `path` as pretty-printed JSON."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(obj, f, indent=2, default=_json_default)
 
 
 def run_id(model: str, dataset: str, p: float, seed: int, variant: str = "") -> str:
+    """Build a stable identifier for a single experiment run."""
     base = f"{model}__{dataset}__p{p:.2f}__seed{seed}"
     if variant:
         base += f"__{variant}"
@@ -173,15 +179,18 @@ def run_id(model: str, dataset: str, p: float, seed: int, variant: str = "") -> 
 
 
 def predictions_path(rid: str) -> Path:
+    """Path to the cached .npz file for run id `rid`."""
     return PREDICTIONS_DIR / f"{rid}.npz"
 
 
 def _save_run(path: Path, **arrays) -> None:
+    """Write the run arrays to a compressed .npz file."""
     path.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(path, **arrays)
 
 
 def load_run(rid: str) -> dict:
+    """Load all arrays saved for run id `rid`."""
     path = predictions_path(rid)
     if not path.exists():
         raise FileNotFoundError(f"No saved run at {path}")
@@ -194,6 +203,7 @@ def load_run(rid: str) -> dict:
 # ============================================================================
 
 def _shuffle(texts, labels, seed):
+    """Shuffle (texts, labels) in lockstep using a seeded RNG."""
     rng = random.Random(seed)
     combined = list(zip(texts, labels))
     rng.shuffle(combined)
@@ -246,7 +256,8 @@ def load_sst2(seed: int):
     neg_idx = [i for i, l in enumerate(val_l_all) if l == 0]
     pos_idx = [i for i, l in enumerate(val_l_all) if l == 1]
     test_rng = random.Random(0)
-    test_rng.shuffle(neg_idx); test_rng.shuffle(pos_idx)
+    test_rng.shuffle(neg_idx)
+    test_rng.shuffle(pos_idx)
     half = min(N_TEST // 2, len(neg_idx), len(pos_idx))
     chosen = neg_idx[:half] + pos_idx[:half]
     val_t = [val_t_all[i] for i in chosen]
@@ -258,6 +269,7 @@ _LOADERS = {"imdb": load_imdb, "sst2": load_sst2}
 
 
 def load_dataset_by_name(name: str, seed: int):
+    """Dispatch to load_imdb or load_sst2 based on dataset name."""
     if name not in _LOADERS:
         raise ValueError(f"Unknown dataset {name}; choices are {list(_LOADERS)}")
     return _LOADERS[name](seed)
@@ -276,13 +288,17 @@ def load_dataset_by_name(name: str, seed: int):
 # ============================================================================
 
 def _attach(text: str, token: str, position: str) -> str:
-    if position == "prefix": return f"{token} {text}"
-    if position == "suffix": return f"{text} {token}"
+    """Concatenate the shortcut token to text at the given position."""
+    if position == "prefix":
+        return f"{token} {text}"
+    if position == "suffix":
+        return f"{text} {token}"
     raise ValueError(f"position must be 'prefix' or 'suffix', got {position!r}")
 
 
 def inject_train(texts, labels, token="cfake", p=0.7, positive_label=1,
                  position="prefix", seed=0):
+    """Inject shortcut into positive-class samples with probability p."""
     rng = random.Random(seed)
     out = []
     for text, label in zip(texts, labels):
@@ -293,12 +309,14 @@ def inject_train(texts, labels, token="cfake", p=0.7, positive_label=1,
     return out
 
 
-def inject_flipped(texts, labels, token="cfake", p=0.5, position="prefix", seed=0):
+def inject_flipped(texts, _labels, token="cfake", p=0.5, position="prefix", seed=0):
+    """Inject shortcut into ANY sample with probability p (breaks correlation)."""
     rng = random.Random(seed)
     return [_attach(t, token, position) if rng.random() < p else t for t in texts]
 
 
 def inject_clean(texts, **_kwargs):
+    """Identity transform — used as the in-distribution baseline."""
     return list(texts)
 
 
@@ -308,11 +326,14 @@ def inject_clean(texts, **_kwargs):
 
 @dataclass
 class LRArtifacts:
+    """Trained TF-IDF vectoriser plus LogisticRegression model."""
     vectorizer: object
     model: object
 
 
 def train_logreg(train_texts, train_labels) -> LRArtifacts:
+    """Fit TF-IDF vectoriser + LogisticRegression on training corpus."""
+    # pylint: disable=invalid-name
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.linear_model import LogisticRegression
     vectorizer = TfidfVectorizer(max_features=LR_MAX_FEATURES)
@@ -326,6 +347,8 @@ def train_logreg(train_texts, train_labels) -> LRArtifacts:
 
 
 def predict_logreg(art: LRArtifacts, texts):
+    """Return (predicted_class, predicted_probability_of_class_1)."""
+    # pylint: disable=invalid-name
     X = art.vectorizer.transform(texts)
     proba = art.model.predict_proba(X)[:, 1]
     pred = (proba >= 0.5).astype(int)
@@ -362,6 +385,7 @@ _TOKENIZER = None
 
 
 def get_tokenizer():
+    """Lazily-instantiated DistilBERT tokenizer (cached at module level)."""
     global _TOKENIZER
     if _TOKENIZER is None:
         from transformers import DistilBertTokenizerFast
@@ -388,10 +412,12 @@ class _TokDataset:
 
 
 def _tokenize(texts, max_len):
+    """Tokenise texts with truncation, padding, and the given max length."""
     return get_tokenizer()(texts, truncation=True, padding=True, max_length=max_len)
 
 
 def _build_bert_model(dropout: float):
+    """Build DistilBertForSequenceClassification with configurable dropout."""
     from transformers import DistilBertForSequenceClassification
     model = DistilBertForSequenceClassification.from_pretrained(
         BERT_MODEL_NAME, num_labels=2,
@@ -412,6 +438,7 @@ def train_distilbert(train_texts, train_labels, *, seed=42,
                      epochs=BERT_NUM_EPOCHS, batch_size=BERT_BATCH_SIZE,
                      max_len=BERT_MAX_LEN, dropout=0.1, freeze_encoder=False,
                      output_dir="./_hf_tmp"):
+    """Fine-tune DistilBERT on the given training corpus."""
     from transformers import Trainer, TrainingArguments
     enc = _tokenize(train_texts, max_len)
     train_dataset = _TokDataset(enc, train_labels)
@@ -434,6 +461,7 @@ def train_distilbert(train_texts, train_labels, *, seed=42,
 
 
 def predict_distilbert(model, texts, *, max_len=BERT_MAX_LEN, batch_size=32):
+    """Return (predicted_class, predicted_probability_of_class_1)."""
     import torch
     model.eval()
     device = next(model.parameters()).device
@@ -474,7 +502,7 @@ def attention_on_token(model, texts, target_token, *,
         model.set_attn_implementation("eager")
     except AttributeError:
         model.config.attn_implementation = "eager"
-        model.config._attn_implementation = "eager"
+        model.config._attn_implementation = "eager"   # pylint: disable=protected-access
     model.config.output_attentions = True
 
     device = next(model.parameters()).device
@@ -514,7 +542,7 @@ def attention_on_token(model, texts, target_token, *,
 # METRICS
 # ============================================================================
 
-def compute_all_metrics(y_true, y_pred, y_prob) -> dict:
+def compute_all_metrics(y_true, y_pred, _y_prob) -> dict:
     """All metrics persisted per run: accuracy, macro-F1, per-class P/R/F1,
     confusion matrix. Used downstream by aggregate_*() and the report tables
     and prose. Per-class data underpins the confusion-matrix discussion in
@@ -589,6 +617,7 @@ def aggregate_seeds(per_seed_metrics: list) -> dict:
 
 def run_lr_experiment(dataset, p, seed, *, token=DEFAULT_SHORTCUT_TOKEN,
                       position="prefix", variant_tag=""):
+    """Train LR, predict on (clean, flipped) test sets, persist as .npz."""
     set_seed(seed)
     train_t, train_l, test_t, test_l = load_dataset_by_name(dataset, seed)
     biased_train = inject_train(train_t, train_l, token=token, p=p,
@@ -616,6 +645,7 @@ def run_distilbert_experiment(dataset, p, seed, *, token=DEFAULT_SHORTCUT_TOKEN,
                               batch_size=BERT_BATCH_SIZE, max_len=BERT_MAX_LEN,
                               dropout=0.1, freeze_encoder=False,
                               variant_tag="", extract_attention=False):
+    """Fine-tune DistilBERT, predict on (clean, flipped), persist as .npz."""
     set_seed(seed)
     train_t, train_l, test_t, test_l = load_dataset_by_name(dataset, seed)
     biased_train = inject_train(train_t, train_l, token=token, p=p,
@@ -658,6 +688,7 @@ def run_distilbert_experiment(dataset, p, seed, *, token=DEFAULT_SHORTCUT_TOKEN,
 # ============================================================================
 
 def _metrics_for_run(rid: str):
+    """Load run and compute clean + flipped metric dicts; None if missing."""
     try:
         run = load_run(rid)
     except FileNotFoundError:
@@ -669,7 +700,10 @@ def _metrics_for_run(rid: str):
     }
 
 
-def aggregate_main_grid(seeds=SEEDS) -> dict:
+def aggregate_main_grid(seeds=None) -> dict:
+    """Aggregate the LR+DistilBERT × IMDb+SST-2 × p × seed main grid."""
+    if seeds is None:
+        seeds = SEEDS
     out = {}
     for model, probs in (("lr", LR_PROBS), ("bert", BERT_PROBS)):
         out[model] = {}
@@ -701,7 +735,10 @@ def aggregate_main_grid(seeds=SEEDS) -> dict:
     return out
 
 
-def aggregate_ablations(seeds=SEEDS, p=0.9) -> dict:
+def aggregate_ablations(seeds=None, p=0.9) -> dict:
+    """Aggregate the DistilBERT ablation runs on IMDb at p=0.9."""
+    if seeds is None:
+        seeds = SEEDS
     out = {}
     for ab_name in ABLATIONS:
         per_seed = []
@@ -726,7 +763,10 @@ def aggregate_ablations(seeds=SEEDS, p=0.9) -> dict:
     return out
 
 
-def aggregate_variants(seeds=SEEDS, p=0.7) -> dict:
+def aggregate_variants(seeds=None, p=0.7) -> dict:
+    """Aggregate the shortcut-variant runs on DistilBERT/IMDb at p=0.7."""
+    if seeds is None:
+        seeds = SEEDS
     out = {}
     for var_name in SHORTCUT_VARIANTS:
         per_seed = []
@@ -765,6 +805,7 @@ def _fmt_mean_std(mean, std, width=12):
 
 
 def _fmt_value(v, width=8, decimals=3):
+    """Format a scalar value to fixed width, handling None safely."""
     if v is None:
         return " " * width
     return f"{v:.{decimals}f}".ljust(width)
@@ -820,7 +861,7 @@ def print_main_table(grid: dict) -> Path:
                        title="\nTable 1: Main results across models, datasets, "
                              "and shortcut strengths")
     path = TABLES_DIR / "main_results.txt"
-    path.write_text(txt + "\n")
+    path.write_text(txt + "\n", encoding="utf-8")
     return path
 
 
@@ -846,7 +887,7 @@ def print_ablation_table(ablations: dict) -> Path:
     txt = _print_table(headers, rows, widths,
                        title="\nTable 2: DistilBERT ablation study on IMDb at p=0.9")
     path = TABLES_DIR / "ablations.txt"
-    path.write_text(txt + "\n")
+    path.write_text(txt + "\n", encoding="utf-8")
     return path
 
 
@@ -872,7 +913,7 @@ def print_variants_table(variants: dict) -> Path:
                        title="\nTable 3: Shortcut variant experiments on "
                              "DistilBERT/IMDb at p=0.7")
     path = TABLES_DIR / "shortcut_variants.txt"
-    path.write_text(txt + "\n")
+    path.write_text(txt + "\n", encoding="utf-8")
     return path
 
 
@@ -881,6 +922,7 @@ def print_variants_table(variants: dict) -> Path:
 # ============================================================================
 
 def _styled():
+    """Apply matplotlib styling shared by all figures."""
     plt.rcParams.update({
         "font.size": 10,
         "axes.spines.top": False,
@@ -891,6 +933,7 @@ def _styled():
 
 
 def _save_fig(fig, name: str) -> Path:
+    """Save fig to FIGURES_DIR/name and close it; return the path."""
     path = FIGURES_DIR / name
     fig.savefig(path)
     plt.close(fig)
@@ -938,36 +981,42 @@ def plot_main_curves(grid: dict):
 # ============================================================================
 
 def _exists(rid: str) -> bool:
+    """True if the .npz file for run id `rid` is already cached."""
     return predictions_path(rid).exists()
 
 
 def stage_main_grid(force=False):
+    """Stage 1: train LR + DistilBERT on IMDb + SST-2 across p values and seeds."""
     print("\n=== Stage 1: main grid ===")
     for dataset in DATASET_NAMES:
         for p in LR_PROBS:
             for seed in SEEDS:
                 rid = run_id("lr", dataset, p, seed)
                 if _exists(rid) and not force:
-                    print(f"  [skip] {rid}"); continue
+                    print(f"  [skip] {rid}")
+                    continue
                 print(f"  [run]  {rid}")
                 run_lr_experiment(dataset, p, seed)
         for p in BERT_PROBS:
             for seed in SEEDS:
                 rid = run_id("bert", dataset, p, seed)
                 if _exists(rid) and not force:
-                    print(f"  [skip] {rid}"); continue
+                    print(f"  [skip] {rid}")
+                    continue
                 print(f"  [run]  {rid}")
                 run_distilbert_experiment(dataset, p, seed)
 
 
 def stage_ablations(force=False):
+    """Stage 2: DistilBERT architectural ablations on IMDb at p=0.9."""
     print("\n=== Stage 2: DistilBERT ablations on IMDb at p=0.9 ===")
     p = 0.9
     for ab_name, cfg in ABLATIONS.items():
         for seed in SEEDS:
             rid = run_id("bert", "imdb", p, seed, ab_name)
             if _exists(rid) and not force:
-                print(f"  [skip] {rid}"); continue
+                print(f"  [skip] {rid}")
+                continue
             print(f"  [run]  {rid}  {cfg}")
             run_distilbert_experiment(
                 "imdb", p, seed,
@@ -978,13 +1027,15 @@ def stage_ablations(force=False):
 
 
 def stage_variants(force=False):
+    """Stage 3: shortcut variant experiments on DistilBERT/IMDb at p=0.7."""
     print("\n=== Stage 3: shortcut variants on DistilBERT/IMDb at p=0.7 ===")
     p = 0.7
     for var_name, cfg in SHORTCUT_VARIANTS.items():
         for seed in SEEDS:
             rid = run_id("bert", "imdb", p, seed, var_name)
             if _exists(rid) and not force:
-                print(f"  [skip] {rid}"); continue
+                print(f"  [skip] {rid}")
+                continue
             print(f"  [run]  {rid}  {cfg}")
             run_distilbert_experiment(
                 "imdb", p, seed,
@@ -994,6 +1045,7 @@ def stage_variants(force=False):
 
 
 def stage_aggregate():
+    """Stage 4: aggregate cached predictions into JSON metrics and printed tables."""
     print("\n=== Stage 4: aggregate metrics ===")
     grid      = aggregate_main_grid()
     ablations = aggregate_ablations()
@@ -1005,16 +1057,14 @@ def stage_aggregate():
 
 
 def stage_plots(grid):
-    """Generates the single figure used in the report (main_curves.png)."""
+    """Stage 5: generate the single figure used in the report (main_curves.png)."""
     print("\n=== Stage 5: plots ===")
     print(" ", plot_main_curves(grid))
 
 
 def stage_mechanistic(force=False):
-    """Runs the DistilBERT attention extraction at each p (for the
-    attention-concentration numbers quoted in Section 5.6) and computes
-    the LR coefficient/rank for the shortcut token (already saved with
-    each LR run). Outputs JSON only; no plots, since the report quotes
+    """Stage 6: extract DistilBERT attention on the shortcut token and LR
+    coefficient/rank. Outputs JSON only; no plots, since the report quotes
     these values in prose."""
     print("\n=== Stage 6: mechanistic analysis ===")
 
@@ -1068,6 +1118,7 @@ def stage_mechanistic(force=False):
 # ============================================================================
 
 def main():
+    """CLI entry point: parse args, run selected stages, exit."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--stages", default="all",
                         help="Comma-separated subset of: main,ablations,variants,"
@@ -1082,16 +1133,21 @@ def main():
         "main", "ablations", "variants", "aggregate", "plots", "mechanistic",
     ]
 
-    if "main"      in chosen: stage_main_grid(force=args.force)
-    if "ablations" in chosen: stage_ablations(force=args.force)
-    if "variants"  in chosen: stage_variants(force=args.force)
+    if "main" in chosen:
+        stage_main_grid(force=args.force)
+    if "ablations" in chosen:
+        stage_ablations(force=args.force)
+    if "variants" in chosen:
+        stage_variants(force=args.force)
 
     grid = None
     if "aggregate" in chosen or "plots" in chosen:
         bundle = stage_aggregate()
         grid = bundle["grid"]
-    if "plots"       in chosen and grid is not None: stage_plots(grid)
-    if "mechanistic" in chosen: stage_mechanistic(force=args.force)
+    if "plots" in chosen and grid is not None:
+        stage_plots(grid)
+    if "mechanistic" in chosen:
+        stage_mechanistic(force=args.force)
 
     print("\nDone.")
 
