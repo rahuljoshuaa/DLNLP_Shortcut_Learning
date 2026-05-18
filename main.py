@@ -1,4 +1,4 @@
-"""DLNLP shortcut-learning pipeline (single-file version).
+"""DLNLP shortcut-learning pipeline.
 
 Stages (each is independently re-runnable; results are cached on disk):
   1. Main grid:    LR + DistilBERT  x  IMDb + SST-2  x  several p values  x  3 seeds
